@@ -9,7 +9,7 @@ require("dotenv").config();
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.owfha.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
@@ -22,7 +22,7 @@ const verifyJWT = (req, res, next) => {
   if (!authHeader) {
     return res
       .status(401)
-      .send({ message: "UnAuthorized access baincot ber ho" });
+      .send({ message: "UnAuthorized access ber ho" });
   }
   const token = authHeader.split(" ")[1];
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
@@ -40,6 +40,7 @@ async function run() {
     const serviceCollection = client.db("doctorService").collection("service");
     const bookingCollection = client.db("doctorService").collection("booking");
     const usersCollection = client.db("doctorService").collection("users");
+    const doctorCollection = client.db("doctorService").collection("doctors");
 
     // get all data
     app.get("/service", async (req, res) => {
@@ -48,6 +49,14 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+
+    // // get all data
+    // app.get("/services", async (req, res) => {
+    //   const query = {};
+    //   const cursor = serviceCollection.find(query).project({name: 1});
+    //   const result = await cursor.toArray();
+    //   res.send(result);
+    // });
 
     // add data in booking collections
     app.post("/booking", async (req, res) => {
@@ -159,21 +168,33 @@ async function run() {
 
 
       // check admin
-      app.get('/user/:email', async(req, res)=>{
+      app.get('/admin/:email', async(req, res)=>{
         const email = req.params.email;
         const user = await usersCollection.findOne({email : email})
         const isAdmin = user.role === "admin";
         res.send({admin: isAdmin})
       })
-
-
-
-
-
-
-
-      
     });
+
+    // create doctor
+    app.post('/doctor', async(req, res)=>{
+      const doctor = req.body;
+      const result = await doctorCollection.insertOne(doctor);
+      res.send(result)
+    })
+
+    // get all doctors
+    app.get('/doctor', verifyJWT, async(req, res)=>{
+      const result = await doctorCollection.find().toArray();
+      res.send(result)
+    });
+
+    app.delete('/doctor/:id', verifyJWT, async(req, res)=>{
+      const id = req.params.id;
+      const query = {_id:ObjectId(id)}
+      const result = await doctorCollection.deleteOne(query);
+      res.send(result);
+    })
 
 
   } finally {
